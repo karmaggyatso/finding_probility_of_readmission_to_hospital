@@ -1,0 +1,156 @@
+---
+title: "Logistic Regression Analysis on Readmission of Each Patient"
+author: "karmaGyatso"
+date: '2022-10-31'
+output:
+  pdf_document: default
+  html_document: default
+---
+## Abstract
+
+After getting discharge from the hospital, the least thing to expect is to re-hospitalize again. However, the average rate of readmission in hospital is 15.50% in the US. Some readmissions, such as those for cancer and related treatment, are expected and planned, but many readmissions are not. In this project, we will be cleaning the data and analysing logistic regression to find the probability of each patient re-admitting in the hospital based on data of Internal Medicine. 
+
+
+## Data Presentation
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+```
+
+## Loading data from github, which was downloaded from Kaggle. classifying the dataset type and printing all the names of the variables. 
+```{r}
+patient_records_test <- read.csv("https://raw.githubusercontent.com/karmaggyatso/CUNY_SPS/main/data606_project/proporsal/Train-1617360447408-1660719685476.csv")
+```
+
+
+```{r}
+glimpse(patient_records_test)
+```
+
+
+```{r}
+dim(patient_records_test)
+```
+
+
+## Cleaning data
+
+```{r}
+str(patient_records_test)
+```
+
+
+```{r}
+#cleaning only columns that is necessary for analysis
+patient_records_test$gender <- as.factor(patient_records_test$gender) #chaning the datatype to factor
+patient_records_test[patient_records_test == "?"] <- NA  # changing every ? to NA
+
+#changing the data value of readmitted. 0 = NO and 1 = YES
+patient_records_test[patient_records_test$readmitted == 0,]$readmitted <- "NO"
+patient_records_test[patient_records_test$readmitted == 1,]$readmitted <- "YES"
+patient_records_test$readmitted <- as.factor(patient_records_test$readmitted)
+
+patient_records_test$age <- as.factor(patient_records_test$age) #changing the datatype to factor because it is categorical value
+
+patient_records_test$medical_specialty <- as.factor(patient_records_test$medical_specialty) #changing the datatype to factor because it is categorical value
+
+patient_records_test$race <- as.factor(patient_records_test$race)
+
+```
+
+```{r}
+summary(patient_records_test$gender)
+```
+
+```{r}
+summary(patient_records_test$readmitted)
+```
+
+
+```{r}
+summary(patient_records_test$age)
+
+```
+
+```{r}
+summary(patient_records_test$medical_specialty)
+
+```
+
+```{r}
+#rechecking the value
+
+str(patient_records_test)
+```
+
+
+```{r}
+#from the data set, choosing internal_medicine
+
+internal_medicine_treatement <- patient_records_test %>%
+  select(patient_id, age, gender, race, medical_specialty, time_in_hospital, readmitted) %>%
+  filter(medical_specialty == "InternalMedicine") %>%
+  drop_na()
+
+internal_medicine_treatement
+```
+
+## Analysis
+
+According to the chart, we can see that graph is left-skewed distribution. We can also see that the Caucasian are the most common patient for internal medicine and they most visited age is between 70 - 80 young old. 
+
+```{r}
+ggplot(internal_medicine_treatement, aes(x = age)) +
+  geom_bar(aes(fill = race )) + 
+  labs(title= "Hospital readmission by age",
+       x="age_group",y="total count")
+```
+
+
+
+## Frequency Count
+
+Quick frequency count on column readmittedm, race, and age
+```{r}
+xtabs(~ readmitted + 
+        race + age, data = internal_medicine_treatement)
+```
+
+
+## GLM(generalized linear models) function
+using *glm()* to generate a model object amd it is named as *logistc*. 
+
+```{r}
+logistc <- glm(readmitted ~  age + race, data = internal_medicine_treatement, family = "binomial")
+
+summary(logistc)
+```
+
+## Created Data frame from the model object
+```{r}
+predicted.data <- data.frame(
+  probility.of.readmission.based.on.treatement = logistc$fitted.values, readmitted = internal_medicine_treatement$readmitted
+)
+
+predicted.data
+```
+
+
+```{r}
+prediction <- internal_medicine_treatement %>%
+  mutate(prob_readmission = logistc$fitted.values) %>%
+  select(patient_id, prob_readmission, age, race, readmitted) %>%
+  arrange(desc(prob_readmission))
+
+prediction
+
+```
+
+
+```{r}
+summary(prediction$prob_readmission)
+```
+
+
+
